@@ -123,21 +123,17 @@ def digital_coeffs(f, fs, a0, a1, a2, b0, b1, b2):
     a1 *= -1
     a2 *= -1
 
-    c = 10 * np.log10(
-        (b0 + b1 + b2) ** 2 + (b0 * b2 * phi - (b1 * (b0 + b2) + 4 * b0 * b2)) * phi
+    return 10 * np.log10(
+        (b0 + b1 + b2) ** 2
+        + (b0 * b2 * phi - (b1 * (b0 + b2) + 4 * b0 * b2)) * phi
     ) - 10 * np.log10(
-        (a0 + a1 + a2) ** 2 + (a0 * a2 * phi - (a1 * (a0 + a2) + 4 * a0 * a2)) * phi
+        (a0 + a1 + a2) ** 2
+        + (a0 * a2 * phi - (a1 * (a0 + a2) + 4 * a0 * a2)) * phi
     )
-    return c
 
 
 def impulse_response(a0, a1, a2, b0, b1, b2, n=250):
     raise NotImplemented('biquad.impulse_response is not correctly implemented!')
-    ir = signal.unit_impulse(n)
-    for _a0, _a1, _a2, _b0, _b1, _b2 in zip(a0, a1, a2, b0, b1, b2):
-        ir = signal.lfilter(np.concatenate([_b0, _b1, _b2]), np.concatenate([_a0, _a1, _a2]), ir)
-    ir = np.concatenate(([0.0], ir))
-    return ir
 
 
 def main():

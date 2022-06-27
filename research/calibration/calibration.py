@@ -18,10 +18,10 @@ MEASUREMENTS = os.path.join(ROOT_DIR, 'measurements')
 
 
 def get_measurements(dir_path):
-    frs = []
-    for fp in glob(os.path.join(dir_path, '**', '*.csv'), recursive=True):
-        frs.append(FrequencyResponse.read_from_csv(fp))
-    return frs
+    return [
+        FrequencyResponse.read_from_csv(fp)
+        for fp in glob(os.path.join(dir_path, '**', '*.csv'), recursive=True)
+    ]
 
 
 def main():
@@ -118,9 +118,11 @@ def main():
         # Find matching pairs
         pairs = []
         for fr in measurements:
-            for candidate in ref:
-                if fr.name.lower() == candidate.name.lower():
-                    pairs.append((fr, candidate))
+            pairs.extend(
+                (fr, candidate)
+                for candidate in ref
+                if fr.name.lower() == candidate.name.lower()
+            )
 
         fig, axs = plt.subplots(1, 3)
         fig.set_size_inches(30, 8)
@@ -138,7 +140,6 @@ def main():
 
         # Individual errors
         errors = []
-        i = 0
         for fr, target in pairs:
             fr.compensate(target, min_mean_error=True)
             errors.append(fr.error)
@@ -146,7 +147,6 @@ def main():
             fr.error = []
             fr.target = []
             fr.plot_graph(fig=fig, ax=axs[0], show=False, raw_plot_kwargs={'color': 'C0', 'alpha': 0.3})
-            i += 1
         axs[0].set_ylim([-15, 15])
         axs[0].set_title('Individual Errors')
         axs[0].legend(['Error'])

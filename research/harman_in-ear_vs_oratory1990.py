@@ -18,9 +18,11 @@ def main():
     harman.smoothen_fractional_octave(window_size=1/6, treble_window_size=1/6)
     harman.equalize()
     filters, _, _ = harman.optimize_parametric_eq(max_filters=2, fs=48000)
-    filters_formatted = []
-    for i in range(len(filters)):
-        filters_formatted.append(['Peaking'] + [f'{x:.2f}' for x in filters[i]])
+    filters_formatted = [
+        ['Peaking'] + [f'{x:.2f}' for x in filters[i]]
+        for i in range(len(filters))
+    ]
+
     filters_table_str = tabulate(
         filters_formatted,
         headers=['Type', 'Fc', 'Q', 'Gain'],

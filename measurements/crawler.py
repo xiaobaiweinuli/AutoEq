@@ -189,7 +189,7 @@ class Crawler(ABC):
                 if not existing:
                     # Name found in name index but the measurement doesn't exist
                     self.process(item, url)
-        if len(unknown_manufacturers) > 0:
+        if unknown_manufacturers:
             print('Headphones with unknown manufacturers\n  ' + '\n  '.join(unknown_manufacturers))
             print('Add them to manufacturers.tsv and run this cell again')
         self.prompts.children = prompts
@@ -275,7 +275,7 @@ class Crawler(ABC):
         with open(file_path, 'wb') as f:
             res.raw.decode_content = True
             shutil.copyfileobj(res.raw, f)
-        print('Downloaded to "{}"'.format(file_path))
+        print(f'Downloaded to "{file_path}"')
         return file_path
 
     def get_beautiful_soup(self, url):

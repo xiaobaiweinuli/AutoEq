@@ -35,7 +35,10 @@ def average_measurements(input_dir=None, output_dir=None):
             f = FrequencyResponse.generate_frequencies()
             avg = np.zeros(len(f))
             for model in origs:
-                fr = FrequencyResponse.read_from_csv(os.path.join(input_dir, model, model + '.csv'))
+                fr = FrequencyResponse.read_from_csv(
+                    os.path.join(input_dir, model, f'{model}.csv')
+                )
+
                 fr.interpolate()
                 fr.center()
                 avg += fr.raw
@@ -43,7 +46,7 @@ def average_measurements(input_dir=None, output_dir=None):
             fr = FrequencyResponse(name=norm, frequency=f, raw=avg)
             d = os.path.join(output_dir, norm)
             os.makedirs(d, exist_ok=True)
-            file_path = os.path.join(d, norm + '.csv')
+            file_path = os.path.join(d, f'{norm}.csv')
             fr.write_to_csv(file_path)
             print(f'Saved {norm} to {file_path}')
 

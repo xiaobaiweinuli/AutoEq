@@ -38,10 +38,10 @@ class NameIndex:
 
     @property
     def items(self):
-        items = []
-        for i, row in self.df.iterrows():
-            items.append(NameItem(row['false_name'], row['true_name'], row['form']))
-        return items
+        return [
+            NameItem(row['false_name'], row['true_name'], row['form'])
+            for i, row in self.df.iterrows()
+        ]
 
     @staticmethod
     def split_path(path):
@@ -89,9 +89,7 @@ class NameIndex:
 
     def mask(self, false_name=None, true_name=None, form=None):
         """Creates a filter mask for rows which match the given query parameters."""
-        mask = None
-        if false_name is not None:
-            mask = (self.df.false_name == false_name)
+        mask = (self.df.false_name == false_name) if false_name is not None else None
         if true_name is not None:
             m = (self.df.true_name == true_name)
             mask = m if mask is None else mask & m
@@ -155,8 +153,7 @@ class NameIndex:
         return NameIndex(rows=self.df.loc[mask].copy())
 
     def find_one(self, **kwargs):
-        results = self.find(**kwargs)
-        if results:
+        if results := self.find(**kwargs):
             return results.items[0]
 
     def search_by_false_name(self, name, threshold=80):

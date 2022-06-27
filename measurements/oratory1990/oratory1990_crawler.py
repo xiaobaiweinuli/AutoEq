@@ -99,9 +99,7 @@ class Oratory1990Crawler(Crawler):
         f_max = 20000
         f_step = (f_max / f_min) ** (1 / im.size[0])
         f = [f_min]
-        for _ in range(1, im.size[0]):
-            f.append(f[-1] * f_step)
-
+        f.extend(f[-1] * f_step for _ in range(1, im.size[0]))
         # Y axis
         a_max = 30
         a_min = -20
@@ -157,35 +155,32 @@ class Oratory1990Crawler(Crawler):
         input_file = os.path.abspath(input_file)
         output_file = os.path.abspath(output_file)
 
-        # Read headphone model from the PDF
-        f = open(input_file, 'rb')
-        text = PyPDF2.PdfFileReader(f).getPage(0).extractText()
-        if 'crinacle' in text.lower():
-            raise ValueError('Measured by Crinacle')
+        with open(input_file, 'rb') as f:
+            text = PyPDF2.PdfFileReader(f).getPage(0).extractText()
+            if 'crinacle' in text.lower():
+                raise ValueError('Measured by Crinacle')
 
-        # Convert to image with ghostscript
-        # Using temporary paths with Ghostscript because it seems to be unable to work with non-ascii characters
-        tmp_in = os.path.join(os.path.split(input_file)[0], '__tmp.pdf')
-        tmp_out = os.path.join(os.path.split(output_file)[0], '__tmp.png')
-        if tmp_in == input_file or tmp_out == output_file:
-            # Skip tmp files in case it was passed as input
-            raise ValueError('tmp file')
-        shutil.copy(input_file, tmp_in)
-        gs = Ghostscript(
-            b'pdf2png',
-            b'-dNOPAUSE',
-            b'-sDEVICE=png16m',
-            b'-dBATCH',
-            b'-r600',
-            b'-dUseCropBox',
-            f'-sOutputFile={tmp_out}'.encode('utf-8'),
-            tmp_in.encode('utf-8')
-        )
-        gs.exit()
-        shutil.copy(tmp_out, output_file)
-        print('\nSaved image to "{}"\n'.format(output_file))
-        f.close()
-
+            # Convert to image with ghostscript
+            # Using temporary paths with Ghostscript because it seems to be unable to work with non-ascii characters
+            tmp_in = os.path.join(os.path.split(input_file)[0], '__tmp.pdf')
+            tmp_out = os.path.join(os.path.split(output_file)[0], '__tmp.png')
+            if tmp_in == input_file or tmp_out == output_file:
+                # Skip tmp files in case it was passed as input
+                raise ValueError('tmp file')
+            shutil.copy(input_file, tmp_in)
+            gs = Ghostscript(
+                b'pdf2png',
+                b'-dNOPAUSE',
+                b'-sDEVICE=png16m',
+                b'-dBATCH',
+                b'-r600',
+                b'-dUseCropBox',
+                f'-sOutputFile={tmp_out}'.encode('utf-8'),
+                tmp_in.encode('utf-8')
+            )
+            gs.exit()
+            shutil.copy(tmp_out, output_file)
+            print(f'\nSaved image to "{output_file}"\n')
         return Image.open(output_file)
 
     def process(self, item, url):

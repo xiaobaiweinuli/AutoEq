@@ -30,7 +30,7 @@ def batch_processing(input_dir=None, output_dir=None, new_only=False, standardiz
     input_dir = os.path.abspath(input_dir)
     glob_files = glob(os.path.join(input_dir, '**', '*.csv'), recursive=True)
     if len(glob_files) == 0:
-        raise FileNotFoundError('No CSV files found in "{}"'.format(input_dir))
+        raise FileNotFoundError(f'No CSV files found in "{input_dir}"')
 
     if compensation:
         # Creates FrequencyResponse for compensation data
@@ -68,8 +68,7 @@ def batch_processing(input_dir=None, output_dir=None, new_only=False, standardiz
             file_paths.append((input_file_path, output_file_path))
             n_total += 1
 
-    n = 0
-    for input_file_path, output_file_path in file_paths:
+    for n, (input_file_path, output_file_path) in enumerate(file_paths, start=1):
         # Read data from input file
         fr = FrequencyResponse.read_from_csv(input_file_path)
 
@@ -138,21 +137,27 @@ def batch_processing(input_dir=None, output_dir=None, new_only=False, standardiz
                             linear_phase_ir = fr.linear_phase_impulse_response(fs=_fs, f_res=f_res, normalize=True)
                             linear_phase_ir = np.tile(linear_phase_ir, (2, 1)).T
                             sf.write(
-                                output_file_path.replace('.csv', ' linear phase {}Hz.wav'.format(_fs)),
+                                output_file_path.replace(
+                                    '.csv', f' linear phase {_fs}Hz.wav'
+                                ),
                                 linear_phase_ir,
                                 _fs,
-                                bit_depth
+                                bit_depth,
                             )
+
                         if phase in ['minimum', 'both']:
                             # Write minimum phase impulse response
                             minimum_phase_ir = fr.minimum_phase_impulse_response(fs=_fs, f_res=f_res, normalize=True)
                             minimum_phase_ir = np.tile(minimum_phase_ir, (2, 1)).T
                             sf.write(
-                                output_file_path.replace('.csv', ' minimum phase {}Hz.wav'.format(_fs)),
+                                output_file_path.replace(
+                                    '.csv', f' minimum phase {_fs}Hz.wav'
+                                ),
                                 minimum_phase_ir,
                                 _fs,
-                                bit_depth
+                                bit_depth,
                             )
+
 
             # Write results to CSV file
             fr.write_to_csv(output_file_path)
@@ -175,7 +180,6 @@ def batch_processing(input_dir=None, output_dir=None, new_only=False, standardiz
         elif show_plot:
             fr.plot_graph(show=True, close=False)
 
-        n += 1
         print(f'{n}/{n_total} ({n / n_total * 100:.1f}%) {time() - start_time:.0f}s: {fr.name}')
 
 
@@ -222,21 +226,34 @@ def cli_args():
     arg_parser.add_argument('--convolution_eq', action='store_true',
                             help='Will produce impulse response for convolution equalizers if this parameter exists, '
                                  'no value needed.')
-    arg_parser.add_argument('--fs', type=str, default=str(DEFAULT_FS),
-                            help='Sampling frequency in Hertz for impulse response and parametric eq filters. Single '
-                                 'value or multiple values separated by commas eg 44100,48000. When multiple values '
-                                 'are given only the first one will be used for parametric eq. '
-                                 'Defaults to {}.'.format(DEFAULT_FS))
-    arg_parser.add_argument('--bit_depth', type=int, default=DEFAULT_BIT_DEPTH,
-                            help='Number of bits for every sample in impulse response. '
-                                 'Defaults to {}.'.format(DEFAULT_BIT_DEPTH))
-    arg_parser.add_argument('--phase', type=str, default=DEFAULT_PHASE,
-                            help='Impulse response phase characteristic. "minimum", "linear" or "both". '
-                                 'Defaults to "{}"'.format(DEFAULT_PHASE))
-    arg_parser.add_argument('--f_res', type=float, default=DEFAULT_F_RES,
-                            help='Frequency resolution for impulse responses. If this is 20 then impulse response '
-                                 'frequency domain will be sampled every 20 Hz. Filter length for '
-                                 'impulse responses will be fs/f_res. Defaults to {}.'.format(DEFAULT_F_RES))
+    arg_parser.add_argument(
+        '--fs',
+        type=str,
+        default=str(DEFAULT_FS),
+        help=f'Sampling frequency in Hertz for impulse response and parametric eq filters. Single value or multiple values separated by commas eg 44100,48000. When multiple values are given only the first one will be used for parametric eq. Defaults to {DEFAULT_FS}.',
+    )
+
+    arg_parser.add_argument(
+        '--bit_depth',
+        type=int,
+        default=DEFAULT_BIT_DEPTH,
+        help=f'Number of bits for every sample in impulse response. Defaults to {DEFAULT_BIT_DEPTH}.',
+    )
+
+    arg_parser.add_argument(
+        '--phase',
+        type=str,
+        default=DEFAULT_PHASE,
+        help=f'Impulse response phase characteristic. "minimum", "linear" or "both". Defaults to "{DEFAULT_PHASE}"',
+    )
+
+    arg_parser.add_argument(
+        '--f_res',
+        type=float,
+        default=DEFAULT_F_RES,
+        help=f'Frequency resolution for impulse responses. If this is 20 then impulse response frequency domain will be sampled every 20 Hz. Filter length for impulse responses will be fs/f_res. Defaults to {DEFAULT_F_RES}.',
+    )
+
     arg_parser.add_argument('--bass_boost', type=str, default=argparse.SUPPRESS,
                             help='Bass boost shelf. Sub-bass frequencies will be boosted by this amount. Can be '
                                  'either a single value for a gain in dB or a comma separated list of three values '
@@ -263,23 +280,34 @@ def cli_args():
                                  'signature graph will be interpolated so any number of point at any frequencies '
                                  'will do, making it easy to create simple signatures with as little as two or '
                                  'three points.')
-    arg_parser.add_argument('--max_gain', type=float, default=DEFAULT_MAX_GAIN,
-                            help='Maximum positive gain in equalization. Higher max gain allows to equalize deeper '
-                                 'dips in  frequency response but will limit output volume if no analog gain is '
-                                 'available because positive gain requires negative digital preamp equal to '
-                                 'maximum positive gain. Defaults to {}.'.format(DEFAULT_MAX_GAIN))
-    arg_parser.add_argument('--treble_f_lower', type=float, default=DEFAULT_TREBLE_F_LOWER,
-                            help='Lower bound for transition region between normal and treble frequencies. Treble '
-                                 'frequencies can have different max gain and gain K. Defaults to '
-                                 '{}.'.format(DEFAULT_TREBLE_F_LOWER))
-    arg_parser.add_argument('--treble_f_upper', type=float, default=DEFAULT_TREBLE_F_UPPER,
-                            help='Upper bound for transition region between normal and treble frequencies. Treble '
-                                 'frequencies can have different max gain and gain K. Defaults to '
-                                 '{}.'.format(DEFAULT_TREBLE_F_UPPER))
-    arg_parser.add_argument('--treble_gain_k', type=float, default=DEFAULT_TREBLE_GAIN_K,
-                            help='Coefficient for treble gain, affects both positive and negative gain. Useful for '
-                                 'disabling or reducing equalization power in treble region. Defaults to '
-                                 '{}.'.format(DEFAULT_TREBLE_GAIN_K))
+    arg_parser.add_argument(
+        '--max_gain',
+        type=float,
+        default=DEFAULT_MAX_GAIN,
+        help=f'Maximum positive gain in equalization. Higher max gain allows to equalize deeper dips in  frequency response but will limit output volume if no analog gain is available because positive gain requires negative digital preamp equal to maximum positive gain. Defaults to {DEFAULT_MAX_GAIN}.',
+    )
+
+    arg_parser.add_argument(
+        '--treble_f_lower',
+        type=float,
+        default=DEFAULT_TREBLE_F_LOWER,
+        help=f'Lower bound for transition region between normal and treble frequencies. Treble frequencies can have different max gain and gain K. Defaults to {DEFAULT_TREBLE_F_LOWER}.',
+    )
+
+    arg_parser.add_argument(
+        '--treble_f_upper',
+        type=float,
+        default=DEFAULT_TREBLE_F_UPPER,
+        help=f'Upper bound for transition region between normal and treble frequencies. Treble frequencies can have different max gain and gain K. Defaults to {DEFAULT_TREBLE_F_UPPER}.',
+    )
+
+    arg_parser.add_argument(
+        '--treble_gain_k',
+        type=float,
+        default=DEFAULT_TREBLE_GAIN_K,
+        help=f'Coefficient for treble gain, affects both positive and negative gain. Useful for disabling or reducing equalization power in treble region. Defaults to {DEFAULT_TREBLE_GAIN_K}.',
+    )
+
     arg_parser.add_argument('--show_plot', action='store_true',
                             help='Plot will be shown if this parameter exists, no value needed.')
     args = vars(arg_parser.parse_args())
