@@ -67,11 +67,11 @@ def main():
         'convolution_eq': True, 'fs': [44100, 48000]
     }
     onear_kwargs = eq_kwargs.copy()
-    onear_kwargs.update({'bass_boost_gain': 4.0})
+    onear_kwargs['bass_boost_gain'] = 4.0
     inear_kwargs = eq_kwargs.copy()
-    inear_kwargs.update({'bass_boost_gain': 6.0})
+    inear_kwargs['bass_boost_gain'] = 6.0
     earbud_kwargs = eq_kwargs.copy()
-    earbud_kwargs.update({'bass_boost_gain': 0.0})
+    earbud_kwargs['bass_boost_gain'] = 0.0
 
     if innerfidelity:
         if onear:

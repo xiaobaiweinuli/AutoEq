@@ -60,12 +60,11 @@ class ReferenceAudioAnalyzerCrawler(Crawler):
 
         document = self.get_beautiful_soup('https://reference-audio-analyzer.pro/en/catalog-reports.php?sp_1=1&tp=1')
         anchors = document.find(name='article', attrs={'class': 'ar3'}).find_all('a')
-        urls = {}
-        for anchor in anchors:
-            if not anchor.has_attr('href'):
-                continue
-            urls[anchor.text] = f'https://reference-audio-analyzer.pro{anchor["href"]}'
-        return urls
+        return {
+            anchor.text: f'https://reference-audio-analyzer.pro{anchor["href"]}'
+            for anchor in anchors
+            if anchor.has_attr('href')
+        }
 
     @staticmethod
     def find_curve(im, inspection, min_hue, max_hue, min_saturation, max_saturation, a_max, a_res):
@@ -110,9 +109,7 @@ class ReferenceAudioAnalyzerCrawler(Crawler):
         f_max = 20000
         f_step = (f_max / f_min) ** (1 / im.size[0])
         f = [f_min]
-        for _ in range(1, im.size[0]):
-            f.append(f[-1] * f_step)
-
+        f.extend(f[-1] * f_step for _ in range(1, im.size[0]))
         # Y axis
         a_max = 150
         a_min = 66
@@ -177,12 +174,9 @@ class ReferenceAudioAnalyzerCrawler(Crawler):
             report_url = f'https://reference-audio-analyzer.pro{anchor["href"]}'
             suffix = anchor.text.lower().strip()
             name = item.true_name
-            if suffix != item.false_name.lower() and suffix != 'default':
+            if suffix not in [item.false_name.lower(), 'default']:
                 name += f' ({suffix})'
-                # The suffixes above are read automatically from the reports compilation page.
-                # However these might not be the names that should exist in AutoEq.
-                mods = self.name_index.find(false_name=name)
-                if mods:
+                if mods := self.name_index.find(false_name=name):
                     # Find an item in name index which has the given name with automatic
                     # suffixes as false name and replace the name with it's true name.
                     true_name = mods.items[0].true_name
@@ -212,7 +206,7 @@ class ReferenceAudioAnalyzerCrawler(Crawler):
                     ).widget
                     if len(self.prompts.children) > 0:
                         if type(self.prompts.children) == tuple:
-                            self.prompts.children = [x for x in self.prompts.children] + [prompt]
+                            self.prompts.children = list(self.prompts.children) + [prompt]
                         else:
                             self.prompts.children.append(prompt)
                     else:

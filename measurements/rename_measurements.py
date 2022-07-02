@@ -62,7 +62,7 @@ def rename_manufacturers():
 
 
 def group_measurements():
-    groups = dict()
+    groups = {}
     for db in DBS:
         # Rename existing files
         existing_files = list(glob(os.path.join(DIR_PATH, db, 'data', '**', '*.csv'), recursive=True))
@@ -87,7 +87,7 @@ def rename_groups(databases=DBS):
 
     # First column is always the true name
     # Create dict with each false name as key and it's true name as value
-    name_map = dict()
+    name_map = {}
     for line in lines:
         names = line.split('\t')
         if len(names) > 1:

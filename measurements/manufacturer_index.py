@@ -23,10 +23,11 @@ class ManufacturerIndex:
     def find(self, name):
         matches = []
         for manufacturer in self.manufacturers:
-            for variant in manufacturer:
-                if re.search(f'^{re.escape(variant)}', name, flags=re.IGNORECASE):
-                    # Case insensitive match with manufacturer, add true manufacturer and the matching variant
-                    matches.append((manufacturer[0], variant))
+            matches.extend(
+                (manufacturer[0], variant)
+                for variant in manufacturer
+                if re.search(f'^{re.escape(variant)}', name, flags=re.IGNORECASE)
+            )
 
         if not matches:
             return None, None
@@ -39,9 +40,7 @@ class ManufacturerIndex:
         manufacturer, match = self.find(name)
         if match is None:
             return name
-        # Replace manufacturer with the match
-        true_name = re.sub(f'^{re.escape(match)}', manufacturer, name, flags=re.IGNORECASE)
-        return true_name
+        return re.sub(f'^{re.escape(match)}', manufacturer, name, flags=re.IGNORECASE)
 
     def model(self, name):
         manufacturer, match = self.find(name)

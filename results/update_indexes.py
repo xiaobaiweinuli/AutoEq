@@ -19,14 +19,14 @@ DIR_PATH = os.path.abspath(os.path.join(__file__, os.pardir))
 
 def form_url(rel_path):
     url = '/'.join(FrequencyResponse._split_path(rel_path))
-    url = './{}'.format(url)
+    url = f'./{url}'
     url = urllib.parse.quote(url, safe="%/:=&?~#+!$,;'@()*[]")
     return url
 
 
 def get_urls(files):
-    urls = dict()
-    skipped = dict()
+    urls = {}
+    skipped = {}
     for path in files:
         rel_path = os.path.relpath(path, DIR_PATH)
         model = os.path.split(rel_path)[-1]
@@ -50,10 +50,21 @@ def get_urls(files):
 
 
 def write_recommendations():
-    urls = dict()
+    urls = {}
     # Get links to Reference Audio Analyzer results
-    urls.update(get_urls(glob(os.path.abspath(
-        os.path.join(DIR_PATH, 'referenceaudioanalyzer', 'referenceaudioanalyzer_siec_harman_in-ear_2019v2', '*')))))
+    urls |= get_urls(
+        glob(
+            os.path.abspath(
+                os.path.join(
+                    DIR_PATH,
+                    'referenceaudioanalyzer',
+                    'referenceaudioanalyzer_siec_harman_in-ear_2019v2',
+                    '*',
+                )
+            )
+        )
+    )
+
     urls.update(get_urls(glob(os.path.abspath(
         os.path.join(DIR_PATH, 'referenceaudioanalyzer', 'referenceaudioanalyzer_hdm1_harman_over-ear_2018', '*')))))
     urls.update(get_urls(glob(os.path.abspath(
@@ -83,7 +94,7 @@ def write_recommendations():
 
     with open(os.path.join(DIR_PATH, 'README.md'), 'w', encoding='utf-8') as f:
         keys = sorted(urls.keys(), key=lambda s: s.lower())
-        unique = len(set(re.sub(r'\(.+\)$', '', x) for x in urls.keys()))
+        unique = len({re.sub(r'\(.+\)$', '', x) for x in urls})
         s = f'''# Recommended Results
         This is a list of recommended results. Results for other measurements and target curves are available for many
         headphones, these can be found in the
@@ -176,12 +187,15 @@ def write_full_index():
     lines = sorted(lines, key=lambda s: s.lower())
 
     with open(os.path.join(DIR_PATH, 'INDEX.md'), 'w', encoding='utf-8') as f:
-        s = '''# Index
+        s = (
+            '''# Index
         This is a list of all equalization profiles. Target is in parentheses if there are results with multiple targets
         from the same source.
 
         '''
-        s += '\n'.join(lines)
+            + '\n'.join(lines)
+        )
+
         f.write(re.sub('\n[ \t]+', '\n', s).strip() + '\n')
 
 
@@ -275,8 +289,7 @@ def write_hesuvi_zip():
                 data = np.array([x.split() for x in s.split(': ')[1].split('; ')], dtype='float')
                 sl = np.logical_and(data[:, 0] > 100, data[:, 0] < 10000)
                 data[:, 1] -= np.mean(data[sl, 1])
-                s = 'GraphicEQ: '
-                s += '; '.join([f'{x[0]:.0f} {x[1]:.1f}' for x in data])
+                s = 'GraphicEQ: ' + '; '.join([f'{x[0]:.0f} {x[1]:.1f}' for x in data])
                 zip_object.writestr(arcname, s)
                 zip_files.add(arcname)
 
@@ -308,28 +321,48 @@ def write_ranking_table():
 
     onear_rows = []
     # Over-ear
-    files = dict()
-    for fp in glob(os.path.join(ROOT_DIR, 'results', 'crinacle', 'gras_43ag-7_harman_over-ear_2018', '*', '*.csv')):
-        files[os.path.split(fp)[1]] = fp
+    files = {
+        os.path.split(fp)[1]: fp
+        for fp in glob(
+            os.path.join(
+                ROOT_DIR,
+                'results',
+                'crinacle',
+                'gras_43ag-7_harman_over-ear_2018',
+                '*',
+                '*.csv',
+            )
+        )
+    }
+
     for fp in glob(os.path.join(ROOT_DIR, 'results', 'oratory1990', 'harman_over-ear_2018', '*', '*.csv')):
         files[os.path.split(fp)[1]] = fp
     for fp in files.values():
-        row = ranking_row(fp, harman_overear, 'onear')
-        if row:
+        if row := ranking_row(fp, harman_overear, 'onear'):
             onear_rows.append(row)
     onear_rows = sorted(onear_rows, key=lambda row: float(row[1]), reverse=True)
     onear_str = tabulate(onear_rows, headers=['Name', 'Score', 'STD (dB)', 'Slope'], tablefmt='github')
 
     inear_rows = []
     # In-ear
-    files = dict()
-    for fp in glob(os.path.join(ROOT_DIR, 'results', 'crinacle', 'harman_in-ear_2019v2', '*', '*.csv')):
-        files[os.path.split(fp)[1]] = fp
+    files = {
+        os.path.split(fp)[1]: fp
+        for fp in glob(
+            os.path.join(
+                ROOT_DIR,
+                'results',
+                'crinacle',
+                'harman_in-ear_2019v2',
+                '*',
+                '*.csv',
+            )
+        )
+    }
+
     for fp in glob(os.path.join(ROOT_DIR, 'results', 'oratory1990', 'harman_in-ear_2019v2', '*', '*.csv')):
         files[os.path.split(fp)[1]] = fp
     for fp in files.values():
-        row = ranking_row(fp, harman_inear, 'inear')
-        if row:
+        if row := ranking_row(fp, harman_inear, 'inear'):
             inear_rows.append(row)
     inear_str = sorted(inear_rows, key=lambda row: float(row[1]), reverse=True)
     inear_str = tabulate(inear_str, headers=['Name', 'Score', 'STD (dB)', 'Slope', 'Average (dB)'], tablefmt='github')

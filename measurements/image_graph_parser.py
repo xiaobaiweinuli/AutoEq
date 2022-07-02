@@ -16,8 +16,8 @@ from frequency_response import FrequencyResponse
 
 class ImageGraphParser:
     def __init__(self):
-        self.images = dict()
-        self.frequency_responses = dict()
+        self.images = {}
+        self.frequency_responses = {}
 
     def read_images(self, dir_path):
         """Reads images from file.
@@ -36,7 +36,7 @@ class ImageGraphParser:
                     model = os.path.split(file_path)[-1].split('.')[0]
                     self.images[model] = Image.open(file_path)
             except:
-                warnings.warn('Failed to read image in path "{}"'.format(file_path))
+                warnings.warn(f'Failed to read image in path "{file_path}"')
 
     def parse_images(self, source, models=None, inspection_dir=None):
         """Parses all read images."""
@@ -56,11 +56,11 @@ class ImageGraphParser:
                 elif source == 'innerfidelity':
                     self.frequency_responses[model], inspection = self.parse_innerfidelity(image, model=model)
                     if inspection_dir is not None:
-                        inspection.save(os.path.join(inspection_dir, model+'.png'))
+                        inspection.save(os.path.join(inspection_dir, f'{model}.png'))
             except Exception as err:
                 warnings.warn('Image for "{model}" parsing failed: "{err}"'.format(model=model, err=err))
                 continue
-            print('Parsed image for "{}"'.format(model))
+            print(f'Parsed image for "{model}"')
 
     @staticmethod
     def parse_headphonecom(im, model, scale=40):
@@ -79,9 +79,7 @@ class ImageGraphParser:
         px_f_max = 71
         f_step = (f_max / f_min)**(1/(im.size[0]-(px_f_max-px_right)))
         f = [f_min]
-        for _ in range(1, im.size[0]):
-            f.append(f[-1] * f_step)
-
+        f.extend(f[-1] * f_step for _ in range(1, im.size[0]))
         # Y axis
         a_max = scale
         a_min = -scale
@@ -110,8 +108,7 @@ class ImageGraphParser:
                 v = a_max - v * a_res
                 amplitude.append(v)
 
-        fr = FrequencyResponse(model, f, amplitude)
-        return fr
+        return FrequencyResponse(model, f, amplitude)
 
     @staticmethod
     def find_lines(im, orientation, line_color=None):
@@ -134,12 +131,11 @@ class ImageGraphParser:
                 else:
                     rgba = im.getpixel((j, i))
                 r, g, b = rgba[:3]
-                if line_color is not None:
-                    if (r, g, b) == line_color:
-                        count += 1
-                else:
+                if line_color is None:
                     if r + g + b < 450 and r == g == b:
                         count += 1
+                elif (r, g, b) == line_color:
+                    count += 1
             if count > im.size[ori2] / 2:
                 # More than half of pixels are black -> this is a line
                 lines.append(i)
@@ -177,9 +173,7 @@ class ImageGraphParser:
         f_max = 30000
         f_step = (f_max / f_min)**(1/im.size[0])
         f = [f_min]
-        for _ in range(1, im.size[0]):
-            f.append(f[-1] * f_step)
-
+        f.extend(f[-1] * f_step for _ in range(1, im.size[0]))
         # Y axis
         a_max = 20
         a_min = -50
@@ -192,10 +186,16 @@ class ImageGraphParser:
         n_v = len(ImageGraphParser.find_lines(_im, 'vertical'))
         if n_v != 28:
             print(n_v)
-            raise ValueError('Innerfidelity image parsing for "{}" failed because X-axis is not correct!'.format(model))
+            raise ValueError(
+                f'Innerfidelity image parsing for "{model}" failed because X-axis is not correct!'
+            )
+
         if n_h != 13:
             print(n_h)
-            raise ValueError('Innerfidelity image parsing for "{}" failed because Y-axis is not correct!'.format(model))
+            raise ValueError(
+                f'Innerfidelity image parsing for "{model}" failed because Y-axis is not correct!'
+            )
+
 
         _im = im.copy()
         pix = _im.load()
@@ -251,9 +251,7 @@ class ImageGraphParser:
         # X axis (frequencies)
         f_step = (f_max / f_min) ** (1 / im.size[0])
         f = [f_min]
-        for _ in range(1, im.size[0]):
-            f.append(f[-1] * f_step)
-
+        f.extend(f[-1] * f_step for _ in range(1, im.size[0]))
         # Y axis (amplitude)
         a_res = (a_max - a_min) / im.size[1]  # dB / px
 
@@ -308,7 +306,7 @@ class ImageGraphParser:
             dir_path = os.path.join(os.path.abspath(output_dir), fr.name)
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path, exist_ok=True)
-            fr.write_to_csv(os.path.join(dir_path, fr.name+'.csv'))
+            fr.write_to_csv(os.path.join(dir_path, f'{fr.name}.csv'))
             # fr.plot_graph(show=True)
 
 

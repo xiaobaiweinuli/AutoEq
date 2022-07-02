@@ -30,25 +30,29 @@ class CrinacleCrawler(Crawler):
         Returns:
             NameIndex
         """
-        rows = []
-
         # Ears-711 measurements name index
         res = requests.get('https://crinacle.com/graphing/data_hp/phone_book.json')
         hp_book = self.parse_book(res.json())
-        for false_name, true_name in hp_book.items():
-            rows.append([false_name, true_name, 'onear'])
+        rows = [
+            [false_name, true_name, 'onear']
+            for false_name, true_name in hp_book.items()
+        ]
 
         # IEM measurements name index
         res = requests.get('https://crinacle.com/graphing/data/phone_book.json')
         iem_book = self.parse_book(res.json())
-        for false_name, true_name in iem_book.items():
-            rows.append([false_name, true_name, 'inear'])
+        rows.extend(
+            [false_name, true_name, 'inear']
+            for false_name, true_name in iem_book.items()
+        )
 
         # Gras measurments name index
         res = requests.get('https://crinacle.com/graphing/data_hp_gras/phone_book.json')
         gras_book = self.parse_book(res.json())
-        for false_name, true_name in gras_book.items():
-            rows.append([false_name, true_name, 'onear'])
+        rows.extend(
+            [false_name, true_name, 'onear']
+            for false_name, true_name in gras_book.items()
+        )
 
         self.book_name_index = NameIndex(rows)
 
@@ -62,7 +66,7 @@ class CrinacleCrawler(Crawler):
         Returns:
             Dict with false names and true names
         """
-        book = dict()
+        book = {}
         for manufacturer in data:
             manufacturer_name = manufacturer['name']
             if 'suffix' in manufacturer:
@@ -107,7 +111,7 @@ class CrinacleCrawler(Crawler):
             name = re.sub(r' [LR]\d*\.txt', '', name).replace('.txt', '')
             name = re.sub(r' #\d$', '', name)
             if name not in file_paths:
-                file_paths[name] = dict()
+                file_paths[name] = {}
             if _rig not in file_paths[name]:
                 file_paths[name][_rig] = []
             file_paths[name][_rig].append(fp)
@@ -275,15 +279,14 @@ class CrinacleCrawler(Crawler):
                 except Exception as err:
                     print(f'Processing failed for "{false_name}"')
                     raise err
-        if len(unknown_manufacturers) > 0:
+        if unknown_manufacturers:
             print('Headphones with unknown manufacturers\n  ' + '\n  '.join(unknown_manufacturers))
             print('Add them to manufacturers.tsv and run this cell again')
         self.prompts.children = prompts
 
     def intermediate_name(self, false_name):
         """Gets intermediate name with false name."""
-        ni = self.book_name_index.find_one(false_name=false_name)
-        if ni:
+        if ni := self.book_name_index.find_one(false_name=false_name):
             name = ni.true_name
             name = name.replace('(w/ ', '(')
             name = name.replace(' pads)', ' earpads)')

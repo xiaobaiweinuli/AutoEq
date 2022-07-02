@@ -90,7 +90,7 @@ class FrequencyResponseLimited(FrequencyResponse):
                     q = np.repeat(q[0], len(fc))
                 elif len(q) != len(fc):
                     raise ValueError('q must have one elemet or the same number of elements as fc.')
-            elif type(q) not in [list, np.ndarray]:
+            else:
                 q = np.repeat(q, len(fc))
 
         if fixed_band_eq and not equalize:
@@ -403,10 +403,7 @@ class FrequencyResponseLimited(FrequencyResponse):
             else:
                 # There are no dips, use the minimum of the first and the last value of y
                 rtl_start = np.argwhere(y[peak_inds[-1]:] <= max(y[0], y[-1]))
-            if len(rtl_start):
-                rtl_start = rtl_start[0, 0] + peak_inds[-1]
-            else:
-                rtl_start = len(y) - 1
+            rtl_start = rtl_start[0, 0] + peak_inds[-1] if len(rtl_start) else len(y) - 1
         else:
             # Last peak is a negative peak, start there
             rtl_start = dip_inds[-1]

@@ -83,7 +83,7 @@ class FrequencyResponse:
         if data is None:
             # None means empty array
             data = []
-        elif type(data) == float or type(data) == int:
+        elif type(data) in [float, int]:
             # Scalar means all values are that, same shape as frequency
             data = np.ones(self.frequency.shape) * data
         # Replace nans with Nones
@@ -97,9 +97,10 @@ class FrequencyResponse:
         self.frequency = self.frequency[sorted_inds]
         for i in range(1, len(self.frequency)):
             if self.frequency[i] == self.frequency[i-1]:
-                raise ValueError('Duplicate values found at frequency {}. Remove duplicates manually.'.format(
-                    self.frequency[i])
+                raise ValueError(
+                    f'Duplicate values found at frequency {self.frequency[i]}. Remove duplicates manually.'
                 )
+
         if len(self.raw):
             self.raw = self.raw[sorted_inds]
         if len(self.error):
@@ -166,7 +167,6 @@ class FrequencyResponse:
         # Regex for AutoEq style CSV
         header_pattern = r'frequency(,(raw|smoothed|error|error_smoothed|equalization|parametric_eq|fixed_band_eq|equalized_raw|equalized_smoothed|target))+'
         float_pattern = r'-?\d+\.?\d+'
-        data_2_pattern = r'{fl}[ ,;:\t]+{fl}?'.format(fl=float_pattern)
         data_n_pattern = r'{fl}([ ,;:\t]+{fl})+?'.format(fl=float_pattern)
         autoeq_pattern = r'^{header}(\n{data})+\n*$'.format(header=header_pattern, data=data_n_pattern)
 
@@ -203,6 +203,7 @@ class FrequencyResponse:
             lines = s.split('\n')
             frequency = []
             raw = []
+            data_2_pattern = r'{fl}[ ,;:\t]+{fl}?'.format(fl=float_pattern)
             for line in lines:
                 if re.match(data_2_pattern, line):  # float separator float
                     floats = re.findall(float_pattern, line)
@@ -212,7 +213,7 @@ class FrequencyResponse:
             return cls(name=name, frequency=frequency, raw=raw)
 
     def to_dict(self):
-        d = dict()
+        d = {}
         if len(self.frequency):
             d['frequency'] = self.frequency.tolist()
         if len(self.raw):
@@ -252,12 +253,9 @@ class FrequencyResponse:
         fr.interpolate(f=f)
         if normalize:
             fr.raw -= np.max(fr.raw) + PREAMP_HEADROOM
-            if fr.raw[0] > 0.0:
-                # Prevent bass boost below lowest frequency
-                fr.raw[0] = 0.0
-
+            fr.raw[0] = min(fr.raw[0], 0.0)
         s = '; '.join(['{f} {a:.1f}'.format(f=f, a=a) for f, a in zip(fr.frequency, fr.raw)])
-        s = 'GraphicEQ: ' + s
+        s = f'GraphicEQ: {s}'
         return s
 
     def write_eqapo_graphic_eq(self, file_path, normalize=True):
@@ -334,10 +332,11 @@ class FrequencyResponse:
                 # Merge two filters which have small integral between them
                 nonlocal peak_fc, peak_g
                 # Form filter pairs, select only filters with equal gain sign
-                pair_inds = []
-                for j in range(len(peak_fc) - 1):
-                    if np.sign(peak_g[j]) == np.sign(peak_g[j + 1]):
-                        pair_inds.append(j)
+                pair_inds = [
+                    j
+                    for j in range(len(peak_fc) - 1)
+                    if np.sign(peak_g[j]) == np.sign(peak_g[j + 1])
+                ]
 
                 min_err = None
                 min_err_ind = None
@@ -788,8 +787,7 @@ class FrequencyResponse:
         # Calculate response
         fr.frequency = np.append(fr.frequency, fs // 2)
         fr.raw = np.append(fr.raw, 0.0)
-        ir = firwin2(len(fr.frequency)*2, fr.frequency, fr.raw, fs=fs)
-        return ir
+        return firwin2(len(fr.frequency)*2, fr.frequency, fr.raw, fs=fs)
 
     def write_readme(self, file_path, max_filters=None, max_gains=None):
         """Writes README.md with picture and Equalizer APO settings."""
@@ -797,10 +795,11 @@ class FrequencyResponse:
         dir_path = os.path.dirname(file_path)
         model = self.name
 
-        # Write model
-        s = '# {}\n'.format(model)
-        s += 'See [usage instructions](https://github.com/jaakkopasanen/AutoEq#usage) for more options and ' \
-             'info.\n'
+        s = (
+            f'# {model}\n'
+            + 'See [usage instructions](https://github.com/jaakkopasanen/AutoEq#usage) for more options and '
+            'info.\n'
+        )
 
         # Add parametric EQ settings
         parametric_eq_path = os.path.join(dir_path, model + ' ParametricEQ.txt')
@@ -835,8 +834,7 @@ class FrequencyResponse:
             max_filters_str = ''
             if type(max_filters) == list and len(max_filters) > 1:
                 n = [0]
-                for x in max_filters:
-                    n.append(n[-1] + x)
+                n.extend(n[-1] + x for x in max_filters)
                 del n[0]
                 if len(max_filters) > 3:
                     max_filters_str = ', '.join([str(x) for x in n[:-2]]) + f' or {n[-2]}'
@@ -849,7 +847,16 @@ class FrequencyResponse:
             preamp_str = ''
             if type(max_gains) == list and len(max_gains) > 1:
                 if len(max_gains) > 3:
-                    strs = f', '.join([f'{-(x + PREAMP_HEADROOM):.1f} dB' for x in max_gains[:-2]]) + f' or -{max_gains[-2]:.1f} dB'
+                    strs = (
+                        ', '.join(
+                            [
+                                f'{-(x + PREAMP_HEADROOM):.1f} dB'
+                                for x in max_gains[:-2]
+                            ]
+                        )
+                        + f' or -{max_gains[-2]:.1f} dB'
+                    )
+
                     preamp_str = f'When using independent subset of filters, apply preamp of {strs}, respectively.'
                 elif len(max_gains) == 3:
                     preamp_str = f'When using independent subset of filters, apply preamp of ' \
@@ -953,11 +960,14 @@ class FrequencyResponse:
 
         # Interpolation functions
         keys = 'raw error error_smoothed equalization equalized_raw equalized_smoothed target'.split()
-        interpolators = dict()
         log_f = np.log10(self.frequency)
-        for key in keys:
-            if len(self.__dict__[key]):
-                interpolators[key] = InterpolatedUnivariateSpline(log_f, self.__dict__[key], k=pol_order)
+        interpolators = {
+            key: InterpolatedUnivariateSpline(
+                log_f, self.__dict__[key], k=pol_order
+            )
+            for key in keys
+            if len(self.__dict__[key])
+        }
 
         if f is None:
             self.frequency = self.generate_frequencies(f_min=f_min, f_max=f_max, f_step=f_step)
@@ -1058,10 +1068,7 @@ class FrequencyResponse:
             DEFAULT_FS,
             *biquad.low_shelf(bass_boost_fc, bass_boost_q, bass_boost_gain, DEFAULT_FS)
         )
-        if tilt is not None:
-            tilt = self._tilt(tilt=tilt)
-        else:
-            tilt = np.zeros(len(self.frequency))
+        tilt = np.zeros(len(self.frequency)) if tilt is None else self._tilt(tilt=tilt)
         return bass_boost + tilt
 
     def compensate(self,
@@ -1118,9 +1125,11 @@ class FrequencyResponse:
         # Octaves to coefficient
         k = 2 ** octaves
         # Calculate average step size in frequencies
-        steps = []
-        for i in range(1, len(self.frequency)):
-            steps.append(self.frequency[i] / self.frequency[i - 1])
+        steps = [
+            self.frequency[i] / self.frequency[i - 1]
+            for i in range(1, len(self.frequency))
+        ]
+
         step_size = sum(steps) / len(steps)
         # Calculate window size in indices
         # step_size^x = k  --> x = ...
@@ -1171,7 +1180,7 @@ class FrequencyResponse:
             # Savgol filter uses array indexing which is not future proof, ignoring the warning and trusting that this
             # will be fixed in the future release
             warnings.simplefilter('ignore')
-            for i in range(iterations):
+            for _ in range(iterations):
                 y_normal = savgol_filter(y_normal, self._window_size(window_size), 2)
 
             # Treble filter
@@ -1574,10 +1583,7 @@ class FrequencyResponse:
             else:
                 # There are no dips, use the minimum of the first and the last value of y
                 rtl_start = np.argwhere(y[peak_inds[-1]:] <= max(y[0], y[-1]))
-            if len(rtl_start):
-                rtl_start = rtl_start[0, 0] + peak_inds[-1]
-            else:
-                rtl_start = len(y) - 1
+            rtl_start = rtl_start[0, 0] + peak_inds[-1] if len(rtl_start) else len(y) - 1
         else:
             # Last peak is a negative peak, start there
             rtl_start = dip_inds[-1]
@@ -1585,10 +1591,7 @@ class FrequencyResponse:
 
     @staticmethod
     def kwarg_defaults(kwargs, **defaults):
-        if kwargs is None:
-            kwargs = {}
-        else:
-            kwargs = {key: val for key, val in kwargs.items()}
+        kwargs = {} if kwargs is None else dict(kwargs.items())
         for key, val in defaults.items():
             if key not in kwargs:
                 kwargs[key] = val
@@ -1841,7 +1844,7 @@ class FrequencyResponse:
                     q = np.repeat(q[0], len(fc))
                 elif len(q) != len(fc):
                     raise ValueError('q must have one elemet or the same number of elements as fc.')
-            elif type(q) not in [list, np.ndarray]:
+            else:
                 q = np.repeat(q, len(fc))
 
         if fixed_band_eq and not equalize:
